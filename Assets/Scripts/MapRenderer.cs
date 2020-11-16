@@ -43,7 +43,6 @@ public class MapRenderer : MonoBehaviour
         for (int y = 0; y < mapData.mapSize.y; y++) {
             for (int x = 0; x < mapData.mapSize.x; x++) {
                 nodeParticles[i].startColor = mapData.nodes[x, y] ? nodeOnColor : nodeOffColor;
-                print(mapData.nodes[x, y]);
                 i++;
             }
         }
