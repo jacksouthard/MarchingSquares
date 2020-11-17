@@ -6,7 +6,7 @@ public struct MapData {
     public Vector2Int mapSize;
     public bool[,] nodes; // false represents off, true represents on
 
-    Vector3 topLeftPos;
+    public Vector3 topLeftPos;
 
     public MapData(Vector2Int mapSize, bool[,] nodes) {
         this.mapSize = mapSize;
