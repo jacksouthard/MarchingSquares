@@ -75,8 +75,11 @@ public class Map : MonoBehaviour
                 }
             }
         }
-
-        mapRenderer.UpdateNodes(ref data);
+        int startX = alteration.topLeftNodePos.x - 1;
+        int startY = alteration.topLeftNodePos.y - 1;
+        int endX = startX + xLen + 2;
+        int endY = startY + yLen + 2;
+        mapRenderer.UpdateNodes(ref data, startX, endX, startY, endY);
     }
 
     public struct NodeAlteration {

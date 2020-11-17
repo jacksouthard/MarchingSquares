@@ -16,7 +16,9 @@ public class MapRenderer : MonoBehaviour
     Vector3[] allVerts;
     int allVertsWidth;
     int allVertsHeight;
-    byte[,] configs;
+    GridSquare[,] gridSquares;
+    int gridSquaresWidth;
+    int gridSquaresHeight;
 
     MeshFilter mf;
     MeshRenderer mr;
@@ -36,9 +38,12 @@ public class MapRenderer : MonoBehaviour
         if (showNodes) InitializeNodeVisuals(ref mapData);
     }
 
-    public void UpdateNodes (ref MapData mapData) {
+    public void UpdateNodes(ref MapData mapData) {
+        UpdateNodes(ref mapData, 0, gridSquaresWidth, 0, gridSquaresHeight);
+    }
+    public void UpdateNodes (ref MapData mapData, int startX, int endX, int startY, int endY) {
         if (showNodes) UpdateNodeVisuals(ref mapData);
-        UpdateConfigs(ref mapData);
+        UpdateGridSquares(ref mapData, startX, endX, startY, endY);
     }
 
     // MARCHING SQUARES
@@ -60,14 +65,28 @@ public class MapRenderer : MonoBehaviour
         mesh = new Mesh();
         mf.sharedMesh = mesh;
         mesh.SetVertices(allVerts);
-
-        configs = new byte[mapData.mapSize.x - 1, mapData.mapSize.y - 1];
-        UpdateConfigs(ref mapData);
+         
+        gridSquaresWidth = mapData.mapSize.x - 1;   
+        gridSquaresHeight = mapData.mapSize.y - 1;
+        gridSquares = new GridSquare[gridSquaresWidth, gridSquaresHeight];
+        for (int y = 0; y < gridSquaresHeight; y++) {
+            for (int x = 0; x < gridSquaresWidth; x++) {
+                gridSquares[x, y] = new GridSquare(0b11111111, null);
+            }
+        }
+        UpdateGridSquares(ref mapData, 0, gridSquaresWidth, 0, gridSquaresHeight);
     }
 
-    void UpdateConfigs (ref MapData mapData) {
-        for (int y = 0; y < configs.GetLength(1); y++) {
-            for (int x = 0; x < configs.GetLength(0); x++) {
+    void UpdateGridSquares (ref MapData mapData, int startX, int endX, int startY, int endY) {
+        startX = Mathf.Clamp(startX, 0, gridSquaresWidth);
+        endX = Mathf.Clamp(endX, 0, gridSquaresWidth);
+        startY = Mathf.Clamp(startY, 0, gridSquaresHeight);
+        endY = Mathf.Clamp(endY, 0, gridSquaresHeight);
+
+        int triangleCalcCount = 0;
+        int configCalcCount = 0;
+        for (int y = startY; y < endY; y++) {
+            for (int x = startX; x < endX; x++) {
                 byte config = 0;
                 // top left
                 if (mapData.nodes[x, y]) config += 8; // 1000
@@ -77,25 +96,43 @@ public class MapRenderer : MonoBehaviour
                 if (mapData.nodes[x + 1, y + 1]) config += 2; // 0010
                 // bottom left
                 if (mapData.nodes[x, y + 1]) config += 1; // 0001
-                configs[x, y] = config;
+                configCalcCount++;
+
+                if (gridSquares[x, y].config != config) {
+                    // the config changed so update the data and recalculate triangles
+                    gridSquares[x, y].config = config;
+                    gridSquares[x, y].tris = CalculateTrianglesForConfig(ref mapData, x, y, config);
+                    triangleCalcCount++;
+                }
             }
         }
+        Debug.Log("Recalculated " + configCalcCount + " configs and " + triangleCalcCount + " triangles");
         UpdateTriangles(ref mapData);
+    }
+
+    struct GridSquare {
+        public byte config;
+        public int[] tris;
+
+        public GridSquare(byte config, int[] tris) {
+            this.config = config;
+            this.tris = tris;
+        }
     }
 
     void UpdateTriangles (ref MapData mapData) {
         List<int> allTriangles = new List<int>();
-        for(int y = 0; y < configs.GetLength(1); y++) {
-            for (int x = 0; x < configs.GetLength(0); x++) {
-                int[] configTris = CalculateTrianglesForConfig(ref mapData, x, y, configs[x, y]);
-                for (int i = 0; i < configTris.Length; i++) {
-                    allTriangles.Add(configTris[i]);
+        int[] configTrisBuf;
+        for (int y = 0; y < gridSquaresHeight; y++) {
+            for (int x = 0; x < gridSquaresWidth; x++) {
+                configTrisBuf = gridSquares[x, y].tris;
+                for (int i = 0; i < configTrisBuf.Length; i++) {
+                    allTriangles.Add(configTrisBuf[i]);
                 }
             }
         }
 
         mesh.SetTriangles(allTriangles.ToArray(), 0);
-        mf.sharedMesh = mesh;
     }
 
     int[] CalculateTrianglesForConfig (ref MapData mapData, int x, int y, byte config) {
