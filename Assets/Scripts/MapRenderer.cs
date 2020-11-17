@@ -8,8 +8,8 @@ public class MapRenderer : MonoBehaviour
     public bool showNodes;
     ParticleSystem nodePS;
     ParticleSystem.Particle[] nodeParticles;
-    Color nodeOnColor = new Color(1, 1, 1, 1);
-    Color nodeOffColor = new Color(0.2f, 0.2f, 0.2f, 1);
+    Color nodeFilledColor = new Color(1, 1, 1, 1);
+    Color nodeUnassignedColor = new Color(0.2f, 0.2f, 0.2f, 1);
 
     // marching squares
     Mesh mesh;
@@ -89,13 +89,13 @@ public class MapRenderer : MonoBehaviour
             for (int x = startX; x < endX; x++) {
                 byte config = 0;
                 // top left
-                if (mapData.nodes[x, y]) config += 8; // 1000
+                if (mapData.GetNodeFilled(x, y)) config += 8; // 1000
                 // top right
-                if (mapData.nodes[x + 1, y]) config += 4; // 0100
+                if (mapData.GetNodeFilled(x + 1, y)) config += 4; // 0100
                 // bottom right
-                if (mapData.nodes[x + 1, y + 1]) config += 2; // 0010
+                if (mapData.GetNodeFilled(x + 1, y + 1)) config += 2; // 0010
                 // bottom left
-                if (mapData.nodes[x, y + 1]) config += 1; // 0001
+                if (mapData.GetNodeFilled(x, y + 1)) config += 1; // 0001
                 configCalcCount++;
 
                 if (gridSquares[x, y].config != config) {
@@ -106,7 +106,7 @@ public class MapRenderer : MonoBehaviour
                 }
             }
         }
-        Debug.Log("Recalculated " + configCalcCount + " configs and " + triangleCalcCount + " triangles");
+        //Debug.Log("Recalculated " + configCalcCount + " configs and " + triangleCalcCount + " triangles");
         UpdateTriangles(ref mapData);
     }
 
@@ -256,7 +256,13 @@ public class MapRenderer : MonoBehaviour
         int i = 0;
         for (int y = 0; y < mapData.mapSize.y; y++) {
             for (int x = 0; x < mapData.mapSize.x; x++) {
-                nodeParticles[i].startColor = mapData.nodes[x, y] ? nodeOnColor : nodeOffColor;
+                int nodeID = mapData.nodes[x, y];
+                Color color;
+                if (nodeID == -2) color = nodeFilledColor;
+                else if (nodeID == -1) color = nodeUnassignedColor;
+                else color = new Color((nodeID % 5 + 1) / 5f, ((nodeID * 2) % 5 + 1) / 5f, ((nodeID * 3) % 5 + 1) / 5f, 1);
+
+                nodeParticles[i].startColor = color;
                 i++;
             }
         }
