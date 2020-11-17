@@ -262,6 +262,8 @@ public class MapRenderer : MonoBehaviour
                 else if (nodeID == -1) color = nodeUnassignedColor;
                 else color = new Color((nodeID % 5 + 1) / 5f, ((nodeID * 2) % 5 + 1) / 5f, ((nodeID * 3) % 5 + 1) / 5f, 1);
 
+                if (mapData.GetNodeIsEdge(new Vector2Int(x, y))) color = Color.Lerp(color, Color.red, 0.5f);
+
                 nodeParticles[i].startColor = color;
                 i++;
             }
