@@ -125,13 +125,16 @@ public class Map : MonoBehaviour
     MapData data;
 
     MapRenderer mapRenderer;
+    MapCollider mapCollider;
 
     private void Start() {
         mapRenderer = GetComponent<MapRenderer>();
+        mapCollider = GetComponent<MapCollider>();
 
         data = MapGenerator.GenerateMap(mapWidth, mapHeight);
 
         mapRenderer.SetMap(ref data);
+        mapCollider.SetMap(ref data);
     }
 
     public Vector2Int WorldPosToTilePos (Vector3 worldPos) {
@@ -299,10 +302,15 @@ public class Map : MonoBehaviour
                     allEdges.Add(newEdge);
                 }
                 Debug.Log("Calculated " + allEdges.Count + " edges for room: " + roomKey);
+
+                // reassign the edges to the room
+                data.ReassignEdgePointsToRoom(roomKey, allEdges);
             }
         }
 
         newlyEmptyTiles.Clear();
+
+        mapCollider.UpdateEdges(ref data);
     }
 
     void ProcessTile (Vector2Int tilePos, ref List<Vector2Int> newRoomTiles, ref List<Vector2Int> floodQueTiles, ref List<int> connectedRoomKeys) {
@@ -346,7 +354,8 @@ public class Map : MonoBehaviour
             Vector2Int curDirVector = GetDirFromDirectionIndex(curDir);
             if (data.GetNodeFilled(curPos + curDirVector)) {
                 // the node in direction is filled so we add the point halfway in this direction and rotate clockwise
-                points.Add(curPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f));
+                Vector2 mapPos = curPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f);
+                points.Add(data.NodePosToWorldPos(mapPos));
                 curDir = RotateClockwise(curDir);
 
                 rotationsInPlace++;
@@ -364,6 +373,9 @@ public class Map : MonoBehaviour
                 rotationsInPlace = 0;
             }
         }
+
+        // readd the first position so we complete the loop
+        points.Add(points[0]);
 
         return points;
     }

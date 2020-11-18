@@ -31,8 +31,8 @@ public class MapMouseTester : MonoBehaviour
     }
 
     private void Update() {
-        if (Input.GetKeyDown(KeyCode.A)) add = true;
-        if (Input.GetKeyDown(KeyCode.S)) add = false;
+        //if (Input.GetKeyDown(KeyCode.A)) add = true;
+        //if (Input.GetKeyDown(KeyCode.S)) add = false;
 
         if (Input.GetKeyDown(KeyCode.Alpha1)) curAlteration = alteration1;
         else if (Input.GetKeyDown(KeyCode.Alpha2)) curAlteration = alteration2;
