@@ -132,6 +132,7 @@ public class Map : MonoBehaviour
         mapCollider = GetComponent<MapCollider>();
 
         data = MapGenerator.GenerateMap(mapWidth, mapHeight);
+        InitializeNodes();
 
         mapRenderer.SetMap(ref data);
         mapCollider.SetMap(ref data);
@@ -139,6 +140,20 @@ public class Map : MonoBehaviour
 
     public Vector2Int WorldPosToTilePos (Vector3 worldPos) {
         return data.WorldPosToTilePos(worldPos);
+    }
+
+    // NODE INITIALIZATION
+    void InitializeNodes () {
+        for (int y = 0; y < mapHeight; y++) {
+            for (int x = 0; x < mapWidth; x++) {
+                if (data.nodes[x, y] == -2) {
+                    FillTile(new Vector2Int(x, y));
+                } else {
+                    EmptyTile(new Vector2Int(x, y));
+                }
+            }
+        }
+        UpdateRooms();
     }
 
     // NODE ALTERATION
@@ -301,7 +316,7 @@ public class Map : MonoBehaviour
                     // then add new edge to list
                     allEdges.Add(newEdge);
                 }
-                Debug.Log("Calculated " + allEdges.Count + " edges for room: " + roomKey);
+                //Debug.Log("Calculated " + allEdges.Count + " edges for room: " + roomKey);
 
                 // reassign the edges to the room
                 data.ReassignEdgePointsToRoom(roomKey, allEdges);
@@ -349,12 +364,27 @@ public class Map : MonoBehaviour
             }
         }
 
+        bool lastPlacementDirAlligned = false;
+        int lastPlacementDir = -1;
+
         int rotationsInPlace = 0; // the number of rotations we have done in the current tile. If this reaches 4 we know we are in a 1x1 room
         while (true) {
             Vector2Int curDirVector = GetDirFromDirectionIndex(curDir);
             if (data.GetNodeFilled(curPos + curDirVector)) {
                 // the node in direction is filled so we add the point halfway in this direction and rotate clockwise
                 Vector2 mapPos = curPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f);
+                // if we are placing the node in the same direction as the last one, we can simply move the last placed one to this one
+                if (curDir == lastPlacementDir) {
+                    if (lastPlacementDirAlligned) {
+                        points.RemoveAt(points.Count - 1);
+                    } else {
+                        lastPlacementDirAlligned = true;
+                    }
+                } else {
+                    lastPlacementDirAlligned = false;
+                }
+                lastPlacementDir = curDir;
+
                 points.Add(data.NodePosToWorldPos(mapPos));
                 curDir = RotateClockwise(curDir);
 
