@@ -11,7 +11,8 @@ public struct MapData {
     public int[,] nodes;
 
     public Vector3 topLeftPos;
-
+    public int lowestEmptyRowIndex;
+    
     int leadingKey;
     public Dictionary<int, RoomData> rooms;
 
@@ -21,6 +22,7 @@ public struct MapData {
         topLeftPos = new Vector3(-mapSize.x / 2f, mapSize.y / 2f, 0);
         rooms = new Dictionary<int, RoomData>();
         leadingKey = 0;
+        lowestEmptyRowIndex = 0;
     }
 
     // actions
@@ -352,25 +354,38 @@ public class Map : MonoBehaviour
 
         includedEdgeNodes.Add(startPos);
 
-        Vector2Int curPos = startPos;
-        int curDir = 0; // up
-
         // calculate our starting direction which should be the direction pointing towards any neighboring filled tile
-        while (!data.GetNodeFilled(startPos + GetDirFromDirectionIndex(curDir))) {
-            curDir++;
-            if (curDir > 3) {
+        int startDir = 0;
+        while (!data.GetNodeFilled(startPos + GetDirFromDirectionIndex(startDir))) {
+            startDir++;
+            if (startDir > 3) {
                 Debug.LogError("Edge point has no neigboring filled nodes");
                 return points;
             }
         }
-
         bool lastPlacementDirAlligned = false;
         int lastPlacementDir = -1;
 
-        int rotationsInPlace = 0; // the number of rotations we have done in the current tile. If this reaches 4 we know we are in a 1x1 room
-        while (true) {
+        int curDir = startDir;
+        Vector2Int curPos = startPos;
+
+        //print("start pos" + startPos + ", start dir: " + startDir);
+
+        int rotationsInStartPos = 0;
+        int interations = 0;
+        bool initial = true;
+        while (interations++ < 1000) {
+            //print("pos: " + curPos + ", dir: " + curDir);
+
+            if (initial) {
+                initial = false;
+            } else {
+                if (curDir == startDir && curPos == startPos) break;
+            }
+
             Vector2Int curDirVector = GetDirFromDirectionIndex(curDir);
             if (data.GetNodeFilled(curPos + curDirVector)) {
+
                 // the node in direction is filled so we add the point halfway in this direction and rotate clockwise
                 Vector2 mapPos = curPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f);
                 // if we are placing the node in the same direction as the last one, we can simply move the last placed one to this one
@@ -386,21 +401,32 @@ public class Map : MonoBehaviour
                 lastPlacementDir = curDir;
 
                 points.Add(data.NodePosToWorldPos(mapPos));
-                curDir = RotateClockwise(curDir);
 
-                rotationsInPlace++;
-                if (rotationsInPlace == 4) break;
+                // special case for top of the map
+                if (curDir == 0 && curPos.x == 0 && curPos.y == data.lowestEmptyRowIndex) {
+                    // we are in the top left corner of the map facing left
+                    // jump to the right side and point right
+                    // need to add all the nodes along the top edge
+                    while (curPos.x < data.mapSize.x - 1) {
+                        curPos.x++;
+                        includedEdgeNodes.Add(curPos);
+                    }
+                } else {
+                    // otherwise do as normal
+                    curDir = RotateClockwise(curDir);
+                }
+
+                //if (curPos == startPos && curDir == startDir) break;
+
+                if (curPos == startPos) rotationsInStartPos++;
+                //if (rotationsInStartPos == 4) break;
             } else {
                 // the node is empty so we should move in that direction and rotate counterclockwise
                 curPos += curDirVector;
                 curDir = RotateCounterclockwise(curDir);
 
-                // if we have reached our starting position break
-                if (curPos == startPos) break;
-
                 // every time we move we need to reset rotations in place and add the tile we moved onto to our list
                 includedEdgeNodes.Add(curPos);
-                rotationsInPlace = 0;
             }
         }
 
@@ -422,9 +448,9 @@ public class Map : MonoBehaviour
     }
 
     Vector2Int GetDirFromDirectionIndex (int index) {
-        if (index == 0) return Vector2Int.up;
+        if (index == 0) return Vector2Int.down;
         if (index == 1) return Vector2Int.right;
-        if (index == 2) return Vector2Int.down;
+        if (index == 2) return Vector2Int.up;
         return Vector2Int.left;
     }
 }
