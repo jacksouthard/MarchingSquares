@@ -83,7 +83,13 @@ public struct MapData {
         return GetNodeFilled(nodePos.x, nodePos.y);
     }
     public bool GetNodeFilled (int x, int y) {
-        if (!NodePosInMap(new Vector2Int(x, y))) return true;
+        return nodes[x, y] == -2;
+    }
+    public bool GetNodeInMapAndFilled(Vector2Int nodePos) {
+        return GetNodeInMapAndFilled(nodePos.x, nodePos.y);
+    }
+    public bool GetNodeInMapAndFilled(int x, int y) {
+        if (!NodePosInMap(new Vector2Int(x, y))) return false;
         return nodes[x, y] == -2;
     }
     public bool GetNodeAssignedToRoom(Vector2Int nodePos) {
@@ -96,7 +102,7 @@ public struct MapData {
     public bool ShouldBeEdge (Vector2Int nodePos) {
         int x = nodePos.x;
         int y = nodePos.y;
-        if (GetNodeFilled(x, y - 1) || GetNodeFilled(x + 1, y) || GetNodeFilled(x, y + 1) || GetNodeFilled(x - 1, y)) return true;
+        if (GetNodeInMapAndFilled(x, y - 1) || GetNodeInMapAndFilled(x + 1, y) || GetNodeInMapAndFilled(x, y + 1) || GetNodeInMapAndFilled(x - 1, y)) return true;
         //if (GetNodeFilled(x, y - 1) || GetNodeFilled(x + 1, y - 1) || GetNodeFilled(x + 1, y) || GetNodeFilled(x + 1, y + 1) || GetNodeFilled(x, y + 1) || GetNodeFilled(x - 1, y + 1) || GetNodeFilled(x - 1, y) || GetNodeFilled(x - 1, y - 1)) return true;
         return false;
     }
@@ -310,13 +316,15 @@ public class Map : MonoBehaviour
                     }
 
                     List<Vector2Int> nodesInNewEdge = new List<Vector2Int>();
-                    List<Vector2> newEdge = CalculateEdgePoints(remainingEdgeTiles[0], ref nodesInNewEdge);
+                    List<List<Vector2>> newPaths = CalculateEdgePoints(remainingEdgeTiles[0], ref nodesInNewEdge);
                     // then remove all overlap
                     foreach (var nodePos in nodesInNewEdge) {
                         remainingEdgeTiles.Remove(nodePos);
                     }
                     // then add new edge to list
-                    allEdges.Add(newEdge);
+                    foreach (var edge in newPaths) {
+                        allEdges.Add(edge);
+                    }
                 }
                 //Debug.Log("Calculated " + allEdges.Count + " edges for room: " + roomKey);
 
@@ -349,18 +357,21 @@ public class Map : MonoBehaviour
     }
 
     // returns all the points along a circular walk of the room starting at a given position on the edge of the room
-    List<Vector2> CalculateEdgePoints (Vector2Int startPos, ref List<Vector2Int> includedEdgeNodes) {
-        List<Vector2> points = new List<Vector2>();
+    List<List<Vector2>> CalculateEdgePoints (Vector2Int startPos, ref List<Vector2Int> includedEdgeNodes) {
+        List<List<Vector2>> paths = new List<List<Vector2>> {
+            new List<Vector2>() // create the first path
+        };
+        int pathIndex = 0;
 
         includedEdgeNodes.Add(startPos);
 
         // calculate our starting direction which should be the direction pointing towards any neighboring filled tile
         int startDir = 0;
-        while (!data.GetNodeFilled(startPos + GetDirFromDirectionIndex(startDir))) {
+        while (!data.GetNodeInMapAndFilled(startPos + GetDirFromDirectionIndex(startDir))) {
             startDir++;
             if (startDir > 3) {
                 Debug.LogError("Edge point has no neigboring filled nodes");
-                return points;
+                return paths;
             }
         }
         bool lastPlacementDirAlligned = false;
@@ -371,27 +382,52 @@ public class Map : MonoBehaviour
 
         //print("start pos" + startPos + ", start dir: " + startDir);
 
-        int rotationsInStartPos = 0;
         int interations = 0;
         bool initial = true;
-        while (interations++ < 1000) {
+        bool previousWasOutsideMap = false;
+        bool shouldBreak = false;
+        while (interations++ < 1000 && !shouldBreak) {
             //print("pos: " + curPos + ", dir: " + curDir);
-
             if (initial) {
                 initial = false;
             } else {
-                if (curDir == startDir && curPos == startPos) break;
+                shouldBreak = (curDir == startDir && curPos == startPos);
             }
 
             Vector2Int curDirVector = GetDirFromDirectionIndex(curDir);
-            if (data.GetNodeFilled(curPos + curDirVector)) {
+            if (!data.NodePosInMap(curPos + curDirVector)) {
+                // the cur node is outside the map
+                if (!previousWasOutsideMap) {
+                    // if the previous was in the map then we just hit an edge
+                    // close off the prevous path
+                    Vector2 mapPos = curPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f);
+                    paths[pathIndex].Add(data.NodePosToWorldPos(mapPos));
+                    previousWasOutsideMap = true;
+                }
+                curDir = RotateClockwise(curDir);
+            } else if (data.GetNodeFilled(curPos + curDirVector)) {
+                if (previousWasOutsideMap) {
+                    // we have to begin a new path
+                    paths.Add(new List<Vector2>());
+                    pathIndex++;
+                    previousWasOutsideMap = false;
+
+                    lastPlacementDirAlligned = false;
+                    lastPlacementDir = -1;
+
+                    // then rewind and add the previous point
+                    int rewindDir = RotateCounterclockwise(curDir);
+                    Vector2Int rewindDirVector = GetDirFromDirectionIndex(rewindDir);
+                    Vector2 rewindPos = curPos + new Vector2(rewindDirVector.x / 2f, rewindDirVector.y / 2f);
+                    paths[pathIndex].Add(data.NodePosToWorldPos(rewindPos));
+                }
 
                 // the node in direction is filled so we add the point halfway in this direction and rotate clockwise
                 Vector2 mapPos = curPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f);
                 // if we are placing the node in the same direction as the last one, we can simply move the last placed one to this one
                 if (curDir == lastPlacementDir) {
                     if (lastPlacementDirAlligned) {
-                        points.RemoveAt(points.Count - 1);
+                        paths[pathIndex].RemoveAt(paths[pathIndex].Count - 1);
                     } else {
                         lastPlacementDirAlligned = true;
                     }
@@ -400,26 +436,23 @@ public class Map : MonoBehaviour
                 }
                 lastPlacementDir = curDir;
 
-                points.Add(data.NodePosToWorldPos(mapPos));
+                paths[pathIndex].Add(data.NodePosToWorldPos(mapPos));
 
                 // special case for top of the map
-                if (curDir == 0 && curPos.x == 0 && curPos.y == data.lowestEmptyRowIndex) {
+                if (false && curDir == 0 && curPos.x == 0 && curPos.y == data.lowestEmptyRowIndex) {
                     // we are in the top left corner of the map facing left
                     // jump to the right side and point right
                     // need to add all the nodes along the top edge
-                    while (curPos.x < data.mapSize.x - 1) {
-                        curPos.x++;
-                        includedEdgeNodes.Add(curPos);
-                    }
+                    curPos.x = data.mapSize.x - 1;
+                    includedEdgeNodes.Add(curPos);
+                    //while (curPos.x < data.mapSize.x - 1) {
+                    //    curPos.x++;
+                    //    includedEdgeNodes.Add(curPos);
+                    //}
                 } else {
                     // otherwise do as normal
                     curDir = RotateClockwise(curDir);
                 }
-
-                //if (curPos == startPos && curDir == startDir) break;
-
-                if (curPos == startPos) rotationsInStartPos++;
-                //if (rotationsInStartPos == 4) break;
             } else {
                 // the node is empty so we should move in that direction and rotate counterclockwise
                 curPos += curDirVector;
@@ -431,9 +464,10 @@ public class Map : MonoBehaviour
         }
 
         // readd the first position so we complete the loop
-        points.Add(points[0]);
+        // only the final path is a loop
+        //paths[pathIndex].Add(paths[0][0]);
 
-        return points;
+        return paths;
     }
 
     int RotateClockwise (int index) {
