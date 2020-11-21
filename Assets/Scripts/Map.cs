@@ -404,7 +404,7 @@ public class Map : MonoBehaviour
         bool initial = true;
         bool previousWasOutsideMap = false;
         bool shouldBreak = false;
-        while (runIterations++ < 1000 && !shouldBreak) {
+        while (runIterations++ < 100000 && !shouldBreak) {
             //print("pos: " + curPos + ", dir: " + curDir);
             if (initial) {
                 initial = false;
