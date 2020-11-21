@@ -10,7 +10,7 @@ public class MapGenerator : MonoBehaviour
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                nodes[x, y] = y == 0 ? -1 : -2;
+                nodes[x, y] = (y == 0 || y == height - 1) ? -1 : -2;
                 //nodes[x, y] = Random.value < 0.5f ? -1 : -2;
             }
         }

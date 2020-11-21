@@ -240,16 +240,25 @@ public class Map : MonoBehaviour
     List<Vector2Int> newlyEmptyTiles = new List<Vector2Int>(); // all the tiles that have switched from filled to empty and have not been sorted into existing rooms / new rooms
 
     void UpdateRooms () {
+        int processedNewlyEmptyTiles = 0;
+        int floodRuns = 0;
+        int edgeRecalculations = 0;
+        int edgePathIterations = 0;
+
         // check the newly empty tiles to add them to existing rooms or make new ones
         foreach (var tile in newlyEmptyTiles) {
             // first check to make sure this tile is unassigned to a room
             if (!data.GetNodeAssignedToRoom(tile)) {
+                processedNewlyEmptyTiles++;
+
                 // flood fill from this tile until the flood completes and make a new room
                 List<Vector2Int> newRoomTiles = new List<Vector2Int>();
                 List<Vector2Int> floodQueTiles = new List<Vector2Int>();
                 List<int> connectedRoomKeys = new List<int>(); // the indexes of any rooms which were found connected to the new room. These will all be combined into one room later
                 floodQueTiles.Add(tile);
                 while (true) {
+                    floodRuns++;
+
                     // add the first tile from the que to the room list (map data not altered yet)
                     newRoomTiles.Add(floodQueTiles[0]);
                     // process all tiles around the new room tile
@@ -280,7 +289,7 @@ public class Map : MonoBehaviour
                             roomKey = connectedRoomKey;
                         }
                     }
-                    //Debug.Log("Merging " + (connectedRoomKeys.Count - 1) + " existing rooms and 1 new room into room: " + roomKey);
+                    //print("Merging " + (connectedRoomKeys.Count - 1) + " existing rooms and 1 new room into room: " + roomKey);
                     // now that we have the largest room, add the tiles from all other rooms into our new room tiles list
                     foreach (var connectedRoomKey in connectedRoomKeys) {
                         if (connectedRoomKey != roomKey) { // ignore the room we are merging into
@@ -295,6 +304,7 @@ public class Map : MonoBehaviour
                     // update the edges of the largest room
                     // we will only be removing edge tiles, bc you cannot have more than we started
                     for (int i = data.rooms[roomKey].edgeTiles.Count - 1; i >= 0; i--) {
+                        edgeRecalculations++;
                         if (!data.ShouldBeEdge(data.rooms[roomKey].edgeTiles[i])) data.rooms[roomKey].edgeTiles.RemoveAt(i);
                     }
                 }
@@ -315,8 +325,12 @@ public class Map : MonoBehaviour
                         break;
                     }
 
+
                     List<Vector2Int> nodesInNewEdge = new List<Vector2Int>();
-                    List<List<Vector2>> newPaths = CalculateEdgePoints(remainingEdgeTiles[0], ref nodesInNewEdge);
+                    List<List<Vector2>> newPaths = CalculateEdgePoints(remainingEdgeTiles[0], ref nodesInNewEdge, out int edgeCalculationIterations);
+
+                    edgePathIterations += edgeCalculationIterations;
+
                     // then remove all overlap
                     foreach (var nodePos in nodesInNewEdge) {
                         remainingEdgeTiles.Remove(nodePos);
@@ -332,6 +346,9 @@ public class Map : MonoBehaviour
                 data.ReassignEdgePointsToRoom(roomKey, allEdges);
             }
         }
+
+        //Debug.Log("Updated rooms. Processed " + processedNewlyEmptyTiles + "/" + newlyEmptyTiles.Count + 
+        //    " | " + floodRuns + " flooded tiles | " + edgeRecalculations + " edge node recalculations | " + edgePathIterations + " edge path iterations");
 
         newlyEmptyTiles.Clear();
 
@@ -357,7 +374,9 @@ public class Map : MonoBehaviour
     }
 
     // returns all the points along a circular walk of the room starting at a given position on the edge of the room
-    List<List<Vector2>> CalculateEdgePoints (Vector2Int startPos, ref List<Vector2Int> includedEdgeNodes) {
+    List<List<Vector2>> CalculateEdgePoints (Vector2Int startPos, ref List<Vector2Int> includedEdgeNodes, out int runIterations) {
+        runIterations = 0;
+
         List<List<Vector2>> paths = new List<List<Vector2>> {
             new List<Vector2>() // create the first path
         };
@@ -382,11 +401,10 @@ public class Map : MonoBehaviour
 
         //print("start pos" + startPos + ", start dir: " + startDir);
 
-        int interations = 0;
         bool initial = true;
         bool previousWasOutsideMap = false;
         bool shouldBreak = false;
-        while (interations++ < 1000 && !shouldBreak) {
+        while (runIterations++ < 1000 && !shouldBreak) {
             //print("pos: " + curPos + ", dir: " + curDir);
             if (initial) {
                 initial = false;
@@ -462,10 +480,6 @@ public class Map : MonoBehaviour
                 includedEdgeNodes.Add(curPos);
             }
         }
-
-        // readd the first position so we complete the loop
-        // only the final path is a loop
-        //paths[pathIndex].Add(paths[0][0]);
 
         return paths;
     }
