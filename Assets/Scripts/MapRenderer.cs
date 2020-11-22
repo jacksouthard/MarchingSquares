@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class MapRenderer : MonoBehaviour
 {
-    Map map;
+    MapChunk chunk;
 
     // showing nodes
     public bool showNodes;
@@ -16,8 +16,7 @@ public class MapRenderer : MonoBehaviour
     // marching squares
     Mesh mesh;
     Vector3[] allVerts;
-    int allVertsWidth;
-    int allVertsHeight;
+    int allVertsSideLength;
     GridSquare[,] gridSquares;
     int gridSquaresWidth;
     int gridSquaresHeight;
@@ -25,8 +24,8 @@ public class MapRenderer : MonoBehaviour
     MeshFilter mf;
     MeshRenderer mr;
 
-    public void Initialize (Map map) {
-        this.map = map;
+    public void Initialize (MapChunk chunk) {
+        this.chunk = chunk;
 
         mf = GetComponent<MeshFilter>();
         mr = GetComponent<MeshRenderer>();
@@ -46,16 +45,13 @@ public class MapRenderer : MonoBehaviour
 
     // MARCHING SQUARES
     void InitializeMarchingSquares () {
-        int vertsX = 2 * map.width - 1;
-        int vertsY = 2 * map.height - 1;
-        allVerts = new Vector3[vertsX * vertsY];
-        allVertsWidth = vertsX;
-        allVertsHeight = vertsY;
+        allVertsSideLength = 2 * Map.chunkSize - 1;
+        allVerts = new Vector3[allVertsSideLength * allVertsSideLength];
 
         int i = 0;         
-        for (int y = 0; y < vertsY; y++) {
-            for (int x = 0; x < vertsX; x++) {
-                allVerts[i] = map.GetTopLeftPos() + new Vector3(x / 2f, -y / 2f, 0);
+        for (int y = 0; y < allVertsSideLength; y++) {
+            for (int x = 0; x < allVertsSideLength; x++) {
+                allVerts[i] = chunk.GetTopLeftPos() + new Vector3(x / 2f, -y / 2f, 0);
                 i++;
             }
         }
@@ -64,8 +60,8 @@ public class MapRenderer : MonoBehaviour
         mf.sharedMesh = mesh;
         mesh.SetVertices(allVerts);
          
-        gridSquaresWidth = map.width - 1;   
-        gridSquaresHeight = map.height - 1;
+        gridSquaresWidth = Map.chunkTileSize;   
+        gridSquaresHeight = Map.chunkTileSize;
         gridSquares = new GridSquare[gridSquaresWidth, gridSquaresHeight];
         for (int y = 0; y < gridSquaresHeight; y++) {
             for (int x = 0; x < gridSquaresWidth; x++) {
@@ -87,13 +83,13 @@ public class MapRenderer : MonoBehaviour
             for (int x = startX; x < endX; x++) {
                 byte config = 0;
                 // top left
-                if (map.GetNodeFilled(x, y)) config += 8; // 1000
+                if (chunk.GetNodeFilled(x, y)) config += 8; // 1000
                 // top right
-                if (map.GetNodeFilled(x + 1, y)) config += 4; // 0100
+                if (chunk.GetNodeFilled(x + 1, y)) config += 4; // 0100
                 // bottom right
-                if (map.GetNodeFilled(x + 1, y + 1)) config += 2; // 0010
+                if (chunk.GetNodeFilled(x + 1, y + 1)) config += 2; // 0010
                 // bottom left
-                if (map.GetNodeFilled(x, y + 1)) config += 1; // 0001
+                if (chunk.GetNodeFilled(x, y + 1)) config += 1; // 0001
                 configCalcCount++;
 
                 if (gridSquares[x, y].config != config) {
@@ -181,28 +177,28 @@ public class MapRenderer : MonoBehaviour
     }
 
     int GetTopLeftIndex (int x, int y) {
-        return Flatten2DIndex(x * 2, y * 2, allVertsWidth);
+        return Flatten2DIndex(x * 2, y * 2, allVertsSideLength);
     }
     int GetTopIndex(int x, int y) {
-        return Flatten2DIndex(x * 2 + 1, y * 2, allVertsWidth);
+        return Flatten2DIndex(x * 2 + 1, y * 2, allVertsSideLength);
     }
     int GetTopRightIndex(int x, int y) {
-        return Flatten2DIndex(x * 2 + 2, y * 2, allVertsWidth);
+        return Flatten2DIndex(x * 2 + 2, y * 2, allVertsSideLength);
     }
     int GetRightIndex(int x, int y) {
-        return Flatten2DIndex(x * 2 + 2, y * 2 + 1, allVertsWidth);
+        return Flatten2DIndex(x * 2 + 2, y * 2 + 1, allVertsSideLength);
     }
     int GetBottomRightIndex(int x, int y) {
-        return Flatten2DIndex(x * 2 + 2, y * 2 + 2, allVertsWidth);
+        return Flatten2DIndex(x * 2 + 2, y * 2 + 2, allVertsSideLength);
     }
     int GetBottomIndex(int x, int y) {
-        return Flatten2DIndex(x * 2 + 1, y * 2 + 2, allVertsWidth);
+        return Flatten2DIndex(x * 2 + 1, y * 2 + 2, allVertsSideLength);
     }
     int GetBottomLeftIndex(int x, int y) {
-        return Flatten2DIndex(x * 2, y * 2 + 2, allVertsWidth);
+        return Flatten2DIndex(x * 2, y * 2 + 2, allVertsSideLength);
     }
     int GetLeftIndex(int x, int y) {
-        return Flatten2DIndex(x * 2, y * 2 + 1, allVertsWidth);
+        return Flatten2DIndex(x * 2, y * 2 + 1, allVertsSideLength);
     }
 
     // SHOWING NODES (DEBUG)
@@ -210,14 +206,14 @@ public class MapRenderer : MonoBehaviour
         GameObject psPrefab = Resources.Load<GameObject>("NodeParticles");
         nodePS = Instantiate(psPrefab, transform).GetComponent<ParticleSystem>();
 
-        nodeParticles = new ParticleSystem.Particle[map.width * map.height];
+        nodeParticles = new ParticleSystem.Particle[Map.chunkSize * Map.chunkSize];
         nodePS.Emit(nodeParticles.Length);
         nodePS.GetParticles(nodeParticles);
 
         int i = 0;
-        for (int y = 0; y < map.height; y++) {
-            for (int x = 0; x < map.width; x++) {
-                nodeParticles[i].position = map.NodePosToWorldPos(new Vector2Int(x, y));
+        for (int y = 0; y < Map.chunkSize; y++) {
+            for (int x = 0; x < Map.chunkSize; x++) {
+                nodeParticles[i].position = chunk.LocalPosToWorldPos(new Vector2Int(x, y));
                 i++;
             }
         }
@@ -225,15 +221,15 @@ public class MapRenderer : MonoBehaviour
 
     void UpdateNodeVisuals () {
         int i = 0;
-        for (int y = 0; y < map.height; y++) {
-            for (int x = 0; x < map.width; x++) {
-                int nodeID = map.Nodes[x, y];
+        for (int y = 0; y < Map.chunkSize; y++) {
+            for (int x = 0; x < Map.chunkSize; x++) {
+                Vector2Int localPos = new Vector2Int(x, y);
+                Vector2Int nodePos = chunk.LocalPosToNodePos(localPos);
                 Color color;
-                if (nodeID == -2) color = nodeFilledColor;
-                else if (nodeID == -1) color = nodeUnassignedColor;
-                else color = new Color((nodeID % 5 + 1) / 5f, ((nodeID * 2) % 5 + 1) / 5f, ((nodeID * 3) % 5 + 1) / 5f, 1);
+                if (chunk.map.GetNodeFilled(nodePos)) color = nodeFilledColor;
+                else color = nodeUnassignedColor;
 
-                if (map.GetNodeIsEdge(new Vector2Int(x, y))) color = Color.Lerp(color, Color.red, 0.5f);
+                if (chunk.GetNodeIsEdge(localPos)) color = Color.Lerp(color, Color.red, 0.5f);
 
                 nodeParticles[i].startColor = color;
                 i++;

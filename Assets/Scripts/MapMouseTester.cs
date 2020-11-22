@@ -42,7 +42,7 @@ public class MapMouseTester : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0)) {
             Vector3 worldPos = mainCam.ScreenToWorldPoint(Input.mousePosition);
-            Vector2Int alterationCenterNodePos = map.WorldPosToTilePos(worldPos);
+            Vector2Int alterationCenterNodePos = map.WorldPosToNodePos(worldPos);
             Vector2Int alterationTopLeft = alterationCenterNodePos - new Vector2Int(curAlteration.GetLength(0) / 2, curAlteration.GetLength(1) / 2);
             Map.NodeAlteration alteration = new Map.NodeAlteration(alterationTopLeft, curAlteration, !add);
             map.AlterNodes(ref alteration);

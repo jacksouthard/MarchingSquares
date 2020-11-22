@@ -4,29 +4,27 @@ using UnityEngine;
 
 public class MapCollider : MonoBehaviour
 {
-    Map map;
+    MapChunk chunk;
 
     List<EdgeCollider2D> activeEdges = new List<EdgeCollider2D>();
 
-    public void Initialize(Map map) {
-        this.map = map;
+    public void Initialize(MapChunk chunk) {
+        this.chunk = chunk;
     }
 
     public void Recalculate () {
         int assignedEdges = 0;
         // for each room, create a collider
-        foreach (KeyValuePair<int, RoomData> pair in map.rooms) {
-            foreach (List<Vector2> edgePoints in pair.Value.edgePoints) {
-                // if we dont have enough instantiated edge colliders, create more
-                while (activeEdges.Count < assignedEdges + 1) {
-                    activeEdges.Add(gameObject.AddComponent<EdgeCollider2D>());
-                }
-
-                activeEdges[assignedEdges].enabled = true;
-                activeEdges[assignedEdges].SetPoints(edgePoints);
-
-                assignedEdges++;
+        foreach (List<Vector2> edgePath in chunk.allEdgePaths) {
+            // if we dont have enough instantiated edge colliders, create more
+            while (activeEdges.Count < assignedEdges + 1) {
+                activeEdges.Add(gameObject.AddComponent<EdgeCollider2D>());
             }
+
+            activeEdges[assignedEdges].enabled = true;
+            activeEdges[assignedEdges].SetPoints(edgePath);
+
+            assignedEdges++;
         }
 
         // if we have more edge colliders than we need, reduce amount by half the overage to avoid too many component creation and deletion
