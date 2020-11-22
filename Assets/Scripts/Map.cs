@@ -103,7 +103,6 @@ public struct MapData {
         int x = nodePos.x;
         int y = nodePos.y;
         if (GetNodeInMapAndFilled(x, y - 1) || GetNodeInMapAndFilled(x + 1, y) || GetNodeInMapAndFilled(x, y + 1) || GetNodeInMapAndFilled(x - 1, y)) return true;
-        //if (GetNodeFilled(x, y - 1) || GetNodeFilled(x + 1, y - 1) || GetNodeFilled(x + 1, y) || GetNodeFilled(x + 1, y + 1) || GetNodeFilled(x, y + 1) || GetNodeFilled(x - 1, y + 1) || GetNodeFilled(x - 1, y) || GetNodeFilled(x - 1, y - 1)) return true;
         return false;
     }
     public bool GetNodeIsEdge (Vector2Int nodePos) {
@@ -115,7 +114,7 @@ public struct MapData {
 
 public struct RoomData {
     public List<Vector2Int> tiles;
-    public List<Vector2Int> edgeTiles; // tiles with at lest 1/8 surrounding tiles filled
+    public List<Vector2Int> edgeTiles; // tiles with at lest 1/4 surrounding tiles filled
     public List<List<Vector2>> edgePoints; // on grid, but not ints bc they are at 0.5 values
 
     public RoomData(List<Vector2Int> tiles, List<Vector2Int> edgeTiles, List<List<Vector2>> edgePoints) {
