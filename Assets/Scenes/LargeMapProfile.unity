@@ -184,8 +184,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d7131c9a7c334301a6e07920e184941, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapWidth: 50
-  mapHeight: 100
+  width: 50
+  height: 100
 --- !u!23 &741578333
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -260,7 +260,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   map: {fileID: 741578332}
-  operationsPerSecond: 20
+  operationsPerSecond: 40
   maxOperations: 10000
   decendFromTop: 1
   operationsPerRow: 15

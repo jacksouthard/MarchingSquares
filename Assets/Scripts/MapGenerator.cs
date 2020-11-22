@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class MapGenerator : MonoBehaviour
 {
-    public static MapData GenerateMap (int width, int height) {
+    public static int[,] GenerateMap (int width, int height) {
         Vector2Int size = new Vector2Int(width, height);
         int[,] nodes = new int[width, height];
 
@@ -15,6 +15,6 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        return new MapData(size, nodes);
+        return nodes;
     }
 }

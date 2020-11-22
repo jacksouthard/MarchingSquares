@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class MapRenderer : MonoBehaviour
 {
+    Map map;
+
     // showing nodes
     public bool showNodes;
     ParticleSystem nodePS;
@@ -23,33 +25,29 @@ public class MapRenderer : MonoBehaviour
     MeshFilter mf;
     MeshRenderer mr;
 
-    bool initialized = false;
-    void Initialize () {
-        initialized = true;
+    public void Initialize (Map map) {
+        this.map = map;
 
         mf = GetComponent<MeshFilter>();
         mr = GetComponent<MeshRenderer>();
+
+        InitializeMarchingSquares();
+
+        if (showNodes) InitializeNodeVisuals();
     }
 
-    public void SetMap (ref MapData mapData) {
-        if (!initialized) Initialize();
-        InitializeMarchingSquares(ref mapData);
-
-        if (showNodes) InitializeNodeVisuals(ref mapData);
+    public void Recalculate() {
+        Recalculate(0, gridSquaresWidth, 0, gridSquaresHeight);
     }
-
-    public void UpdateNodes(ref MapData mapData) {
-        UpdateNodes(ref mapData, 0, gridSquaresWidth, 0, gridSquaresHeight);
-    }
-    public void UpdateNodes (ref MapData mapData, int startX, int endX, int startY, int endY) {
-        if (showNodes) UpdateNodeVisuals(ref mapData);
-        UpdateGridSquares(ref mapData, startX, endX, startY, endY);
+    public void Recalculate (int startX, int endX, int startY, int endY) {
+        if (showNodes) UpdateNodeVisuals();
+        UpdateGridSquares(startX, endX, startY, endY);
     }
 
     // MARCHING SQUARES
-    void InitializeMarchingSquares (ref MapData mapData) {
-        int vertsX = 2 * mapData.mapSize.x - 1;
-        int vertsY = 2 * mapData.mapSize.y - 1;
+    void InitializeMarchingSquares () {
+        int vertsX = 2 * map.width - 1;
+        int vertsY = 2 * map.height - 1;
         allVerts = new Vector3[vertsX * vertsY];
         allVertsWidth = vertsX;
         allVertsHeight = vertsY;
@@ -57,7 +55,7 @@ public class MapRenderer : MonoBehaviour
         int i = 0;         
         for (int y = 0; y < vertsY; y++) {
             for (int x = 0; x < vertsX; x++) {
-                allVerts[i] = mapData.topLeftPos + new Vector3(x / 2f, -y / 2f, 0);
+                allVerts[i] = map.GetTopLeftPos() + new Vector3(x / 2f, -y / 2f, 0);
                 i++;
             }
         }
@@ -66,18 +64,18 @@ public class MapRenderer : MonoBehaviour
         mf.sharedMesh = mesh;
         mesh.SetVertices(allVerts);
          
-        gridSquaresWidth = mapData.mapSize.x - 1;   
-        gridSquaresHeight = mapData.mapSize.y - 1;
+        gridSquaresWidth = map.width - 1;   
+        gridSquaresHeight = map.height - 1;
         gridSquares = new GridSquare[gridSquaresWidth, gridSquaresHeight];
         for (int y = 0; y < gridSquaresHeight; y++) {
             for (int x = 0; x < gridSquaresWidth; x++) {
                 gridSquares[x, y] = new GridSquare(0b11111111, null);
             }
         }
-        UpdateGridSquares(ref mapData, 0, gridSquaresWidth, 0, gridSquaresHeight);
+        //UpdateGridSquares(0, gridSquaresWidth, 0, gridSquaresHeight);
     }
 
-    void UpdateGridSquares (ref MapData mapData, int startX, int endX, int startY, int endY) {
+    void UpdateGridSquares (int startX, int endX, int startY, int endY) {
         startX = Mathf.Clamp(startX, 0, gridSquaresWidth);
         endX = Mathf.Clamp(endX, 0, gridSquaresWidth);
         startY = Mathf.Clamp(startY, 0, gridSquaresHeight);
@@ -89,25 +87,25 @@ public class MapRenderer : MonoBehaviour
             for (int x = startX; x < endX; x++) {
                 byte config = 0;
                 // top left
-                if (mapData.GetNodeFilled(x, y)) config += 8; // 1000
+                if (map.GetNodeFilled(x, y)) config += 8; // 1000
                 // top right
-                if (mapData.GetNodeFilled(x + 1, y)) config += 4; // 0100
+                if (map.GetNodeFilled(x + 1, y)) config += 4; // 0100
                 // bottom right
-                if (mapData.GetNodeFilled(x + 1, y + 1)) config += 2; // 0010
+                if (map.GetNodeFilled(x + 1, y + 1)) config += 2; // 0010
                 // bottom left
-                if (mapData.GetNodeFilled(x, y + 1)) config += 1; // 0001
+                if (map.GetNodeFilled(x, y + 1)) config += 1; // 0001
                 configCalcCount++;
 
                 if (gridSquares[x, y].config != config) {
                     // the config changed so update the data and recalculate triangles
                     gridSquares[x, y].config = config;
-                    gridSquares[x, y].tris = CalculateTrianglesForConfig(ref mapData, x, y, config);
+                    gridSquares[x, y].tris = CalculateTrianglesForConfig(x, y, config);
                     triangleCalcCount++;
                 }
             }
         }
         //Debug.Log("Recalculated " + configCalcCount + " configs and " + triangleCalcCount + " triangles");
-        UpdateTriangles(ref mapData);
+        UpdateTriangles();
     }
 
     struct GridSquare {
@@ -120,7 +118,7 @@ public class MapRenderer : MonoBehaviour
         }
     }
 
-    void UpdateTriangles (ref MapData mapData) {
+    void UpdateTriangles () {
         List<int> allTriangles = new List<int>();
         int[] configTrisBuf;
         for (int y = 0; y < gridSquaresHeight; y++) {
@@ -135,7 +133,7 @@ public class MapRenderer : MonoBehaviour
         mesh.SetTriangles(allTriangles.ToArray(), 0);
     }
 
-    int[] CalculateTrianglesForConfig (ref MapData mapData, int x, int y, byte config) {
+    int[] CalculateTrianglesForConfig (int x, int y, byte config) {
         switch(config) {
             // 0 points
             case 0:
@@ -207,62 +205,35 @@ public class MapRenderer : MonoBehaviour
         return Flatten2DIndex(x * 2, y * 2 + 1, allVertsWidth);
     }
 
-#if UNITY_EDITOR
-    private void OnDrawGizmosSelected() {
-        //if (allVerts != null && allVerts.Length > 0) {
-        //    Vector3 scale = Vector3.one * 0.1f;
-        //    for (int i = 0; i < allVerts.Length; i++) {
-        //        Gizmos.DrawWireCube(allVerts[i], scale);
-        //    }
-        //}
-        //if (mesh != null) {
-        //    Vector3[] meshVerts = mesh.vertices;
-        //    Vector3 scale = Vector3.one * 0.1f;
-        //    for (int i = 0; i < meshVerts.Length; i++) {
-        //        Gizmos.DrawWireCube(meshVerts[i], scale);
-        //    }
-
-        //    int[] tris = mesh.triangles;
-        //    int trisCount = tris.Length / 3;
-        //    for (int i = 0; i < trisCount; i++) {
-        //        Gizmos.DrawLine(meshVerts[tris[i * 3]], meshVerts[tris[i * 3 + 1]]);
-        //        Gizmos.DrawLine(meshVerts[tris[i * 3+1]], meshVerts[tris[i * 3 + 2]]);
-        //        Gizmos.DrawLine(meshVerts[tris[i * 3 + 2]], meshVerts[tris[i * 3 ]]);
-        //    }
-        //}
-    }
-#endif
-
     // SHOWING NODES (DEBUG)
-    void InitializeNodeVisuals (ref MapData mapData) {
+    void InitializeNodeVisuals () {
         GameObject psPrefab = Resources.Load<GameObject>("NodeParticles");
         nodePS = Instantiate(psPrefab, transform).GetComponent<ParticleSystem>();
 
-        nodeParticles = new ParticleSystem.Particle[mapData.mapSize.x * mapData.mapSize.y];
+        nodeParticles = new ParticleSystem.Particle[map.width * map.height];
         nodePS.Emit(nodeParticles.Length);
         nodePS.GetParticles(nodeParticles);
 
         int i = 0;
-        for (int y = 0; y < mapData.mapSize.y; y++) {
-            for (int x = 0; x < mapData.mapSize.x; x++) {
-                nodeParticles[i].position = mapData.NodePosToWorldPos(new Vector2Int(x, y));
+        for (int y = 0; y < map.height; y++) {
+            for (int x = 0; x < map.width; x++) {
+                nodeParticles[i].position = map.NodePosToWorldPos(new Vector2Int(x, y));
                 i++;
             }
         }
-        UpdateNodeVisuals(ref mapData);
     }
 
-    void UpdateNodeVisuals (ref MapData mapData) {
+    void UpdateNodeVisuals () {
         int i = 0;
-        for (int y = 0; y < mapData.mapSize.y; y++) {
-            for (int x = 0; x < mapData.mapSize.x; x++) {
-                int nodeID = mapData.nodes[x, y];
+        for (int y = 0; y < map.height; y++) {
+            for (int x = 0; x < map.width; x++) {
+                int nodeID = map.Nodes[x, y];
                 Color color;
                 if (nodeID == -2) color = nodeFilledColor;
                 else if (nodeID == -1) color = nodeUnassignedColor;
                 else color = new Color((nodeID % 5 + 1) / 5f, ((nodeID * 2) % 5 + 1) / 5f, ((nodeID * 3) % 5 + 1) / 5f, 1);
 
-                if (mapData.GetNodeIsEdge(new Vector2Int(x, y))) color = Color.Lerp(color, Color.red, 0.5f);
+                if (map.GetNodeIsEdge(new Vector2Int(x, y))) color = Color.Lerp(color, Color.red, 0.5f);
 
                 nodeParticles[i].startColor = color;
                 i++;

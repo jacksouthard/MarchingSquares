@@ -4,21 +4,18 @@ using UnityEngine;
 
 public class MapCollider : MonoBehaviour
 {
+    Map map;
+
     List<EdgeCollider2D> activeEdges = new List<EdgeCollider2D>();
 
-    bool initialized = false;
-    void Initialize() {
-        initialized = true;
+    public void Initialize(Map map) {
+        this.map = map;
     }
 
-    public void SetMap(ref MapData mapData) {
-        if (!initialized) Initialize();
-    }
-
-    public void UpdateEdges (ref MapData mapData) {
+    public void Recalculate () {
         int assignedEdges = 0;
         // for each room, create a collider
-        foreach (KeyValuePair<int, RoomData> pair in mapData.rooms) {
+        foreach (KeyValuePair<int, RoomData> pair in map.rooms) {
             foreach (List<Vector2> edgePoints in pair.Value.edgePoints) {
                 // if we dont have enough instantiated edge colliders, create more
                 while (activeEdges.Count < assignedEdges + 1) {

@@ -51,7 +51,7 @@ public class MapProfiler : MonoBehaviour
             maxY = decendYRange;
             operationsUntilDecent = operationsPerRow;
         } else {
-            maxY = map.mapHeight - 1;
+            maxY = map.height - 1;
         }
     }
 
@@ -60,7 +60,7 @@ public class MapProfiler : MonoBehaviour
             nextOperationTime = Time.time + delayBetweenOperations;
 
             // do a random operation
-            Vector2Int alterationPos = new Vector2Int(Random.Range(0, map.mapWidth - 1), Random.Range(minY, maxY));
+            Vector2Int alterationPos = new Vector2Int(Random.Range(0, map.width - 1), Random.Range(minY, maxY));
             Map.NodeAlteration alteration = new Map.NodeAlteration(alterationPos, alterations[Random.Range(0,alterations.Count)], true);
             map.AlterNodes(ref alteration);
 
@@ -70,7 +70,7 @@ public class MapProfiler : MonoBehaviour
                 operationsUntilDecent--;
                 if (operationsUntilDecent < 1) {
                     operationsUntilDecent = operationsPerRow;
-                    if (maxY < map.mapHeight - 1) {
+                    if (maxY < map.height - 1) {
                         minY++;
                         maxY++;
                     }
