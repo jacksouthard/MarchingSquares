@@ -70,14 +70,22 @@ public class Map : MonoBehaviour
     }
 
     void RecalculateAllChunks () {
-        RecalculateChunks(0, chunkCountX, 0, chunkCountY);
+        RecalculateChunks(0, chunkCountX - 1, 0, chunkCountY - 1);
     }
     void RecalculateChunks (int chunkStartX, int chunkEndX, int chunkStartY, int chunkEndY) {
-        for (int y = chunkStartY; y < chunkEndY; y++) {
-            for (int x = chunkStartX; x < chunkEndX; x++) {
+        for (int y = chunkStartY; y <= chunkEndY; y++) {
+            for (int x = chunkStartX; x <= chunkEndX; x++) {
                 chunks[x, y].Recalculate();
             }
         }
+    }
+
+    void RecalculateChunksInAlteration (int lowestAlteredX, int highestAlteredX, int lowestAlteredY, int highestAlteredY) {
+        int lowestAlteredChunkX = Mathf.Max(0, (lowestAlteredX - 1) / chunkTileSize);
+        int lowestAlteredChunkY = Mathf.Max(0, (lowestAlteredY - 1) / chunkTileSize);
+        int highestAlteredChunkX = Mathf.Min(chunkCountX - 1, (highestAlteredX + 1) / chunkTileSize);
+        int highestAlteredChunkY = Mathf.Min(chunkCountY - 1, (highestAlteredY + 1) / chunkTileSize);
+        RecalculateChunks(lowestAlteredChunkX, highestAlteredChunkX, lowestAlteredChunkY, highestAlteredChunkY);
     }
 
     static Vector2Int NodePosToChunkLocalPos (Vector2Int nodePos, Vector2Int chunkPos) {
@@ -174,7 +182,7 @@ public class Map : MonoBehaviour
         int endX = startX + xLen + 2;
         int endY = startY + yLen + 2;
 
-        RecalculateAllChunks();
+        RecalculateChunksInAlteration(startX, endX, startY, endY);
     }
 
     public struct NodeAlteration {
