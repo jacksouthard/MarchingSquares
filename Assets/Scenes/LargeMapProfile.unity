@@ -167,8 +167,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d7131c9a7c334301a6e07920e184941, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chunkCountX: 2
-  chunkCountY: 3
+  chunkCountX: 5
+  chunkCountY: 10
 --- !u!114 &741578336
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -182,9 +182,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   map: {fileID: 741578332}
-  operationsPerSecond: 40
-  maxOperations: 15
-  decendFromTop: 0
+  operationsPerSecond: 100
+  maxOperations: 10000
+  decendFromTop: 1
   operationsPerRow: 15
 --- !u!1 &2031631505
 GameObject:
@@ -240,7 +240,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 18
+  orthographic size: 40
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2

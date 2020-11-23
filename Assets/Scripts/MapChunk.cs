@@ -119,6 +119,8 @@ public class MapChunk : MonoBehaviour
         int curDir = startDir;
         Vector2Int curLocalPos = localStartPos;
 
+        //print("Start calc " + localStartPos + " D: " + startDir);
+
         bool initial = true;
         bool previousWasOutsideChunk = false;
         bool shouldBreak = false;
@@ -132,22 +134,21 @@ public class MapChunk : MonoBehaviour
 
             Vector2Int curDirVector = GetDirFromDirectionIndex(curDir);
             if (!IsNodeInChunk(curLocalPos + curDirVector)) {
-                // the cur node is outside the map
+                // the cur node is outside the chunk
                 if (!previousWasOutsideChunk) {
+                    //print("Hit edge: " + curLocalPos + " D: " + curDir);
                     // if the previous was in the chunk then we just hit an edge
-                    // close off the prevous path
-                    Vector2 mapLocalPos = curLocalPos + new Vector2(curDirVector.x / 2f, curDirVector.y / 2f);
-                    paths[pathIndex].Add(LocalPosToWorldPos(mapLocalPos));
-                    //paths[pathIndex].Add(Vector2.Lerp(LocalPosToWorldPos(mapLocalPos), paths[pathIndex][paths[pathIndex].Count - 1], 0.5f));
                     previousWasOutsideChunk = true;
                 }
                 curDir = RotateClockwise(curDir);
             } else if (GetNodeFilled(curLocalPos + curDirVector)) {
                 if (previousWasOutsideChunk) {
-                    //if (paths[pathIndex].Count < 2) {
-                    //    paths.RemoveAt(pathIndex);
-                    //    pathIndex--;
-                    //}
+                    //print("Refound filled: " + curLocalPos + " D: " + curDir);
+                    if (paths[pathIndex].Count < 2) {
+                        //print("Removed last");
+                        paths.RemoveAt(pathIndex);
+                        pathIndex--;
+                    }
                     // we have to begin a new path
                     paths.Add(new List<Vector2>());
                     pathIndex++;
@@ -155,12 +156,6 @@ public class MapChunk : MonoBehaviour
 
                     lastPlacementDirAlligned = false;
                     lastPlacementDir = -1;
-
-                    // then rewind and add the previous point
-                    int rewindDir = RotateCounterclockwise(curDir);
-                    Vector2Int rewindDirVector = GetDirFromDirectionIndex(rewindDir);
-                    Vector2 rewindLocalPos = curLocalPos + new Vector2(rewindDirVector.x / 2f, rewindDirVector.y / 2f);
-                    paths[pathIndex].Add(LocalPosToWorldPos(rewindLocalPos));
                 }
 
                 // the node in direction is filled so we add the point halfway in this direction and rotate clockwise
@@ -189,7 +184,11 @@ public class MapChunk : MonoBehaviour
                 includedEdgeNodes.Add(curLocalPos);
             }
         }
-
+        if (paths[pathIndex].Count < 2) {
+            //print("Removed last final");
+            paths.RemoveAt(pathIndex);
+        }
+        //print("Calculated new paths: " + paths.Count);
         return paths;
     }
 
@@ -217,15 +216,12 @@ public class MapChunk : MonoBehaviour
         return map.IsNodeInMap(topLeftNodePos + localPos);
     }
     public bool IsNodeInChunk(Vector2Int localPos) {
-        if (localPos.x < 0 || localPos.y < 0 || localPos.x >= Map.chunkSize || localPos.y >= Map.chunkSize) return false;
+        if (localPos.x < 0 || localPos.y < 0 || localPos.x > Map.chunkTileSize || localPos.y > Map.chunkTileSize) return false;
         return true;
     }
-    public bool GetNode(Vector2Int localPos) {
-        return map.Nodes[topLeftNodePos.x + localPos.x, topLeftNodePos.y + localPos.y];
-    }
 
-    public bool GetNodeFilled(Vector2Int nodePos) {
-        return map.GetNodeFilled(topLeftNodePos.x + nodePos.x, topLeftNodePos.y + nodePos.y);
+    public bool GetNodeFilled(Vector2Int localPos) {
+        return map.GetNodeFilled(topLeftNodePos.x + localPos.x, topLeftNodePos.y + localPos.y);
     }
     public bool GetNodeFilled(int x, int y) {
         return map.GetNodeFilled(topLeftNodePos.x + x, topLeftNodePos.y + y);
@@ -233,7 +229,7 @@ public class MapChunk : MonoBehaviour
 
     public bool GetNodeInChunkAndFilled(Vector2Int localPos) {
         if (!IsNodeInChunk(localPos)) return false;
-        return GetNode(localPos);
+        return GetNodeFilled(localPos);
     }
     public bool ShouldBeEdge(Vector2Int localPos) {
         if (GetNodeInChunkAndFilled(localPos + Vector2Int.down) || GetNodeInChunkAndFilled(localPos + Vector2Int.right) || GetNodeInChunkAndFilled(localPos + Vector2Int.up) || GetNodeInChunkAndFilled(localPos + Vector2Int.left)) return true;
